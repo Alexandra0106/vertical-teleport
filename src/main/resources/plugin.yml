@@ -1,0 +1,7 @@
+name: VerticalTeleport
+version: 1.0.0
+main: io.elyvara.vtp.VerticalTeleport
+description: Vertical teleporter blocks
+author: Alex
+website: https://github.com/Alexandra0106/vertical-teleport
+api-version: '1.21.8'
