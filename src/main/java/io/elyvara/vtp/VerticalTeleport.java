@@ -13,8 +13,13 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import java.util.HashMap;
+import java.util.UUID;
 
 public class VerticalTeleport extends JavaPlugin implements Listener {
+	private final HashMap<UUID, Long> cooldowns = new HashMap<>();
+	private final long cooldownDuration = 125; // 0.125 second in milliseconds
+
 	@Override
 	public void onEnable() {
 		saveDefaultConfig();
@@ -26,6 +31,8 @@ public class VerticalTeleport extends JavaPlugin implements Listener {
 		final Material elevatorMaterial = Material.getMaterial(getConfig().getString("material-type"));
 		Block clickedBlock = event.getClickedBlock();
 		Player player = event.getPlayer();
+		UUID playerUUID = player.getUniqueId();
+		long currentTime = System.currentTimeMillis();
 		Location playerLoc = player.getLocation();
 
 		// Check if left or right click
@@ -62,9 +69,20 @@ public class VerticalTeleport extends JavaPlugin implements Listener {
 				for (double destY = clickedBlock.getY() - 2; destY > worldFloorY; destY--) {
 					destination.setY(destY);
 
-					if (isSafeElevator(destination, event)) {
+					if (isSafeElevator(destination, player)) {
+						if (cooldowns.containsKey(playerUUID)) {
+							long lastInteractionTime = cooldowns.get(playerUUID);
+							if (currentTime < lastInteractionTime + cooldownDuration) {
+								// Player still on cooldown
+								return;
+							}
+						}
 						if (!player.teleport(destination)) {
 							player.sendMessage(Component.text("Teleport failed for unknown reason."));
+						}
+						else {
+							// Set cooldown after successful vtp
+							cooldowns.put(playerUUID, currentTime);
 						}
 						// Stop searching
 						break;
@@ -75,9 +93,21 @@ public class VerticalTeleport extends JavaPlugin implements Listener {
 				// If right click --> check upward for elevator
 				for (double destY = clickedBlock.getY() + 4; destY < worldCeilingY; destY++) {
 					destination.setY(destY);
-					if (isSafeElevator(destination, event)) {
+
+					if (isSafeElevator(destination, player)) {
+						if (cooldowns.containsKey(playerUUID)) {
+							long lastInteractionTime = cooldowns.get(playerUUID);
+							if (currentTime < lastInteractionTime + cooldownDuration) {
+								// Player still on cooldown
+								return;
+							}
+						}
 						if (!player.teleport(destination)) {
 							player.sendMessage(Component.text("Teleport failed for unknown reason."));
+						}
+						else {
+							// Set cooldown after successful vtp
+							cooldowns.put(playerUUID, currentTime);
 						}
 						// Stop searching
 						break;
@@ -90,7 +120,7 @@ public class VerticalTeleport extends JavaPlugin implements Listener {
 		}
 	}
 
-	public boolean isSafeElevator(Location loc, PlayerInteractEvent event) {
+	public boolean isSafeElevator(Location loc, Player player) {
 		Block legDest = loc.getBlock();
 		Block headDest = legDest.getRelative(BlockFace.UP);
 		final Material elevatorMaterial = Material.getMaterial(getConfig().getString("material-type"));
@@ -109,7 +139,7 @@ public class VerticalTeleport extends JavaPlugin implements Listener {
 		}
 		else {
 			// Not safe, notify player
-			event.getPlayer().sendMessage(Component.text("Destination elevator blocked or unsafe."));
+			player.sendMessage(Component.text("Destination elevator blocked or unsafe."));
 			return false;
 		}
 	}
